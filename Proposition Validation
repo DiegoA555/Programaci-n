@@ -1,0 +1,118 @@
+#include <stdio.h>
+#include <ctype.h>
+#include <string.h>
+
+// Function to check if operator
+int is_operator(char c) {
+    return (c == '+' || c == '*' || c == '-'); 
+}
+
+// Function to check if atom or negation
+int is_single_valid_formula(char *formula, int start, int end) { 
+    if (start == end && isalpha(formula[start])) return 1; 
+    
+    if (formula[start] == '(' && formula[start + 1] == '~' && isalpha(formula[start + 2]) 
+        && formula[start + 3] == ')' && start + 3 == end) return 1;
+    
+    return 0;
+}
+
+// Function to validate if logic formula
+int validate_formula(char *formula) {  
+    int len = strlen(formula); 
+    int paren_count = 0; 
+    int i = 0; 
+    int last_was_operator = 0; 
+    int last_was_open_paren = 0; 
+    int last_was_close_paren = 0; 
+    int last_was_atom = 0; 
+    
+    // If the formula is a single atom or negation
+    if (is_single_valid_formula(formula, 0, len - 1)) return 1;
+    
+    // If too short or start/end != parenth
+    if (len == 1 || formula[0] != '(' || formula[len - 1] != ')') return 0;
+    
+    // Reject (p), must have op
+    if (len == 3 && formula[0] == '(' && isalpha(formula[1]) && formula[2] == ')') return 0;
+    
+    // Check nested par
+    int j = 0, nested_paren = 0;
+    if (formula[j] == '(') {
+        j++;
+        while (formula[j] == '(') { nested_paren++; j++; }
+        int sub_end = len - 2;
+        while (formula[sub_end] == ')') { nested_paren--; sub_end--; }
+        if (nested_paren == 0 && is_single_valid_formula(formula, j, sub_end)) return 0;
+    }
+    
+    while (i < len) {
+        char c = formula[i];
+
+        // Skip whitespace
+        if (isspace(c)) { i++; continue; }
+        
+        // Handle '('
+        if (c == '(') {
+            paren_count++; 
+            last_was_open_paren = 1; 
+            last_was_operator = 0;
+            last_was_close_paren = 0;
+            last_was_atom = 0;
+        } 
+        else if (c == ')') {
+            paren_count--; 
+            if (paren_count < 0) return 0; 
+            if (last_was_operator || last_was_open_paren) return 0;
+            last_was_close_paren = 1;
+            last_was_operator = 0;
+            last_was_open_paren = 0;
+        } 
+        else if (isalpha(c)) {
+            if (last_was_close_paren) return 0; 
+            if (last_was_atom) return 0;
+            last_was_atom = 1;
+            last_was_open_paren = 0;
+            last_was_operator = 0;
+        }
+        else if (c == '~') {
+            if (last_was_atom || last_was_close_paren) return 0;
+            if (i + 1 >= len || formula[i + 1] != '(') return 0; 
+            int j = i + 2;
+            if (!isalpha(formula[j])) return 0; 
+            if (formula[j + 1] != ')') return 0;
+            i += 2; 
+        }
+        else if (is_operator(c)) {
+            if (last_was_operator || last_was_open_paren) return 0; 
+            if (c == '-' && (i == 0 || i == len - 1)) return 0; 
+            if (c == '-' && (!last_was_atom && !last_was_close_paren)) return 0; 
+            last_was_operator = 1;
+            last_was_atom = 0;
+            last_was_close_paren = 0;
+        }
+        else {
+            return 0;
+        }
+
+        i++; 
+    }
+
+    return (paren_count == 0);
+}
+
+int main() {
+    char formula[100]; 
+    printf("Enter a logical proposition: ");
+    fgets(formula, sizeof(formula), stdin);
+    
+    formula[strcspn(formula, "\n")] = 0;
+    
+    if (validate_formula(formula)) {
+        printf("Valid logical proposition!\n");
+    } else {
+        printf("Invalid logical proposition!\n");
+    }
+    
+    return 0;
+}
